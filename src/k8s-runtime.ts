@@ -74,6 +74,8 @@ export class K8sContainerRuntime implements ContainerRuntime {
     ];
 
     const gf = opts.groupFolder ?? 'default';
+    // subPaths must match the orchestrator's directory layout on the PVC:
+    // groups/ is at PVC root, ipc/ and sessions/ are under data/
     const volumeMounts: k8s.V1VolumeMount[] = [
       {
         name: 'tenant-data',
@@ -83,17 +85,17 @@ export class K8sContainerRuntime implements ContainerRuntime {
       {
         name: 'tenant-data',
         mountPath: '/workspace/ipc',
-        subPath: `ipc/${gf}`,
+        subPath: `data/ipc/${gf}`,
       },
       {
         name: 'tenant-data',
         mountPath: '/home/node/.claude',
-        subPath: `sessions/${gf}/.claude`,
+        subPath: `data/sessions/${gf}/.claude`,
       },
       {
         name: 'tenant-data',
         mountPath: '/app/src',
-        subPath: `sessions/${gf}/agent-runner-src`,
+        subPath: `data/sessions/${gf}/agent-runner-src`,
       },
     ];
 

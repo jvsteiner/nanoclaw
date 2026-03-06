@@ -1,0 +1,13 @@
+node_modules
+dist
+.git
+.env
+*.test.ts
+*.test.js
+setup/
+.claude/
+.husky/
+.github/
+data/
+store/
+groups/
