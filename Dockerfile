@@ -18,12 +18,15 @@ FROM node:22-slim
 
 RUN apt-get update && apt-get install -y \
     curl \
+    python3 make g++ \
     && rm -rf /var/lib/apt/lists/*
 
 WORKDIR /app
 
 COPY package*.json ./
-RUN npm ci --omit=dev --ignore-scripts
+RUN npm ci --omit=dev --ignore-scripts \
+    && npm rebuild better-sqlite3 \
+    && apt-get purge -y python3 make g++ && apt-get autoremove -y
 
 # Copy compiled JS from build stage
 COPY --from=build /app/dist/ ./dist/

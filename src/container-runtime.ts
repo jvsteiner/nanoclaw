@@ -189,10 +189,10 @@ export class DockerContainerRuntime implements ContainerRuntime {
 // Factory
 // ---------------------------------------------------------------------------
 
-export function createRuntime(): ContainerRuntime {
+export async function createRuntime(): Promise<ContainerRuntime> {
   if (CONTAINER_RUNTIME_TYPE === 'k8s') {
-    // Lazy import to avoid loading @kubernetes/client-node when not needed
-    const { K8sContainerRuntime } = require('./k8s-runtime.js');
+    // Dynamic import to avoid loading @kubernetes/client-node when not needed
+    const { K8sContainerRuntime } = await import('./k8s-runtime.js');
     return new K8sContainerRuntime({
       namespace: K8S_NAMESPACE,
       pvcName: K8S_PVC_NAME,

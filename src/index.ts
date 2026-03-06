@@ -467,7 +467,7 @@ function ensureContainerSystemRunning(): void {
 }
 
 async function main(): Promise<void> {
-  runtime = createRuntime();
+  runtime = await createRuntime();
   ensureContainerSystemRunning();
   initDatabase();
   logger.info('Database initialized');
