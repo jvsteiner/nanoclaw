@@ -67,3 +67,16 @@ export const TRIGGER_PATTERN = new RegExp(
 // Uses system timezone by default
 export const TIMEZONE =
   process.env.TZ || Intl.DateTimeFormat().resolvedOptions().timeZone;
+
+// --- K8s / multi-tenant settings ---
+export const K8S_ENV = process.env.K8S_ENV === 'true';
+export const CONTAINER_RUNTIME_TYPE: 'docker' | 'k8s' =
+  (process.env.CONTAINER_RUNTIME_TYPE as 'docker' | 'k8s') || 'docker';
+export const K8S_NAMESPACE = process.env.K8S_NAMESPACE || 'default';
+export const K8S_PVC_NAME = process.env.K8S_PVC_NAME || 'tenant-data';
+export const AGENT_CPU_REQUEST = process.env.AGENT_CPU_REQUEST || '250m';
+export const AGENT_CPU_LIMIT = process.env.AGENT_CPU_LIMIT || '1000m';
+export const AGENT_MEMORY_REQUEST = process.env.AGENT_MEMORY_REQUEST || '512Mi';
+export const AGENT_MEMORY_LIMIT = process.env.AGENT_MEMORY_LIMIT || '1Gi';
+export const HEALTH_PORT = parseInt(process.env.HEALTH_PORT || '3000', 10);
+export const TENANT_ID = process.env.TENANT_ID || '';

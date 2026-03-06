@@ -19,9 +19,11 @@ import {
   writeTasksSnapshot,
 } from './container-runner.js';
 import {
-  cleanupOrphans,
-  ensureContainerRuntimeRunning,
+  createRuntime,
 } from './container-runtime.js';
+import type { ContainerRuntime } from './container-runtime.js';
+import { K8S_ENV } from './config.js';
+import { startHealthServer, incrementMessages, incrementAgentExecutions } from './health.js';
 import {
   getAllChats,
   getAllRegisteredGroups,
@@ -62,6 +64,7 @@ let messageLoopRunning = false;
 
 const channels: Channel[] = [];
 const queue = new GroupQueue();
+let runtime: ContainerRuntime;
 
 function loadState(): void {
   lastTimestamp = getRouterState('last_timestamp') || '';
@@ -302,6 +305,7 @@ async function runAgent(
 
   try {
     const output = await runContainerAgent(
+      runtime,
       group,
       {
         prompt,
@@ -456,19 +460,34 @@ function recoverPendingMessages(): void {
 }
 
 function ensureContainerSystemRunning(): void {
-  ensureContainerRuntimeRunning();
-  cleanupOrphans();
+  runtime.ensureRunning();
+  runtime.cleanup();
 }
 
 async function main(): Promise<void> {
+  runtime = createRuntime();
   ensureContainerSystemRunning();
   initDatabase();
   logger.info('Database initialized');
   loadState();
 
+  // Health server (for K8s liveness/readiness probes)
+  let isReady = false;
+  if (K8S_ENV) {
+    startHealthServer({
+      getActiveConversations: () => {
+        let count = 0;
+        for (const ch of channels) if (ch.isConnected()) count++;
+        return count;
+      },
+      isReady: () => isReady,
+    });
+  }
+
   // Graceful shutdown handlers
   const shutdown = async (signal: string) => {
     logger.info({ signal }, 'Shutdown signal received');
+    isReady = false;
     await queue.shutdown(10000);
     for (const ch of channels) await ch.disconnect();
     process.exit(0);
@@ -528,11 +547,14 @@ async function main(): Promise<void> {
     process.exit(1);
   }
 
+  isReady = true;
+
   // Start subsystems (independently of connection handler)
   startSchedulerLoop({
     registeredGroups: () => registeredGroups,
     getSessions: () => sessions,
     queue,
+    runtime,
     onProcess: (groupJid, proc, containerName, groupFolder) =>
       queue.registerProcess(groupJid, proc, containerName, groupFolder),
     sendMessage: async (jid, rawText) => {

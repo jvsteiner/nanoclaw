@@ -1,4 +1,3 @@
-import { ChildProcess } from 'child_process';
 import { CronExpressionParser } from 'cron-parser';
 import fs from 'fs';
 
@@ -8,6 +7,7 @@ import {
   runContainerAgent,
   writeTasksSnapshot,
 } from './container-runner.js';
+import type { ContainerProcess, ContainerRuntime } from './container-runtime.js';
 import {
   getAllTasks,
   getDueTasks,
@@ -66,9 +66,10 @@ export interface SchedulerDependencies {
   registeredGroups: () => Record<string, RegisteredGroup>;
   getSessions: () => Record<string, string>;
   queue: GroupQueue;
+  runtime: ContainerRuntime;
   onProcess: (
     groupJid: string,
-    proc: ChildProcess,
+    proc: ContainerProcess,
     containerName: string,
     groupFolder: string,
   ) => void;
@@ -170,6 +171,7 @@ async function runTask(
 
   try {
     const output = await runContainerAgent(
+      deps.runtime,
       group,
       {
         prompt: task.prompt,

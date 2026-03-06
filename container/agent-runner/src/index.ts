@@ -494,8 +494,14 @@ async function main(): Promise<void> {
   let containerInput: ContainerInput;
 
   try {
-    const stdinData = await readStdin();
-    containerInput = JSON.parse(stdinData);
+    let rawInput: string;
+    if (process.env.NANOCLAW_INPUT_B64) {
+      rawInput = Buffer.from(process.env.NANOCLAW_INPUT_B64, 'base64').toString('utf-8');
+      log('Reading input from NANOCLAW_INPUT_B64 env var (K8s mode)');
+    } else {
+      rawInput = await readStdin();
+    }
+    containerInput = JSON.parse(rawInput);
     // Delete the temp file the entrypoint wrote — it contains secrets
     try { fs.unlinkSync('/tmp/input.json'); } catch { /* may not exist */ }
     log(`Received input for group: ${containerInput.groupFolder}`);

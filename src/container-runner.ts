@@ -2,7 +2,6 @@
  * Container Runner for NanoClaw
  * Spawns agent execution in containers and handles IPC
  */
-import { ChildProcess, exec, spawn } from 'child_process';
 import fs from 'fs';
 import path from 'path';
 
@@ -19,10 +18,9 @@ import { readEnvFile } from './env.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
 import { logger } from './logger.js';
 import {
-  CONTAINER_RUNTIME_BIN,
   readonlyMountArgs,
-  stopContainer,
 } from './container-runtime.js';
+import type { ContainerProcess, ContainerRuntime } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup } from './types.js';
 
@@ -256,9 +254,10 @@ function buildContainerArgs(
 }
 
 export async function runContainerAgent(
+  runtime: ContainerRuntime,
   group: RegisteredGroup,
   input: ContainerInput,
-  onProcess: (proc: ChildProcess, containerName: string) => void,
+  onProcess: (proc: ContainerProcess, containerName: string) => void,
   onOutput?: (output: ContainerOutput) => Promise<void>,
 ): Promise<ContainerOutput> {
   const startTime = Date.now();
@@ -297,24 +296,42 @@ export async function runContainerAgent(
   const logsDir = path.join(groupDir, 'logs');
   fs.mkdirSync(logsDir, { recursive: true });
 
-  return new Promise((resolve) => {
-    const container = spawn(CONTAINER_RUNTIME_BIN, containerArgs, {
-      stdio: ['pipe', 'pipe', 'pipe'],
+  // Pass secrets via stdin/env (never written to disk or mounted as files)
+  input.secrets = readSecrets();
+  const inputPayload = JSON.stringify(input);
+  // Remove secrets from input so they don't appear in logs
+  delete input.secrets;
+
+  let container: ContainerProcess;
+  try {
+    container = await runtime.run({
+      containerName,
+      image: CONTAINER_IMAGE,
+      args: containerArgs,
+      env: { TZ: TIMEZONE },
+      input: inputPayload,
+      groupFolder: group.folder,
+      isMain: input.isMain,
     });
+  } catch (err) {
+    logger.error(
+      { group: group.name, containerName, error: err },
+      'Container spawn error',
+    );
+    return {
+      status: 'error',
+      result: null,
+      error: `Container spawn error: ${err instanceof Error ? err.message : String(err)}`,
+    };
+  }
 
-    onProcess(container, containerName);
+  onProcess(container, containerName);
 
+  return new Promise((resolve) => {
     let stdout = '';
     let stderr = '';
     let stdoutTruncated = false;
     let stderrTruncated = false;
-
-    // Pass secrets via stdin (never written to disk or mounted as files)
-    input.secrets = readSecrets();
-    container.stdin.write(JSON.stringify(input));
-    container.stdin.end();
-    // Remove secrets from input so they don't appear in logs
-    delete input.secrets;
 
     // Streaming output: parse OUTPUT_START/END marker pairs as they arrive
     let parseBuffer = '';
@@ -408,15 +425,11 @@ export async function runContainerAgent(
         { group: group.name, containerName },
         'Container timeout, stopping gracefully',
       );
-      exec(stopContainer(containerName), { timeout: 15000 }, (err) => {
-        if (err) {
-          logger.warn(
-            { group: group.name, containerName, err },
-            'Graceful stop failed, force killing',
-          );
-          container.kill('SIGKILL');
-        }
-      });
+      try {
+        runtime.stop(containerName);
+      } catch {
+        container.kill('SIGKILL');
+      }
     };
 
     let timeout = setTimeout(killOnTimeout, timeoutMs);
@@ -631,7 +644,7 @@ export async function runContainerAgent(
       resolve({
         status: 'error',
         result: null,
-        error: `Container spawn error: ${err.message}`,
+        error: `Container spawn error: ${err instanceof Error ? err.message : String(err)}`,
       });
     });
   });
