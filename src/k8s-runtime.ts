@@ -7,7 +7,11 @@ import { PassThrough, Readable } from 'stream';
 
 import * as k8s from '@kubernetes/client-node';
 
-import type { ContainerProcess, ContainerRuntime, RuntimeRunOptions } from './container-runtime.js';
+import type {
+  ContainerProcess,
+  ContainerRuntime,
+  RuntimeRunOptions,
+} from './container-runtime.js';
 import { logger } from './logger.js';
 
 export interface K8sRuntimeOptions {
@@ -71,10 +75,26 @@ export class K8sContainerRuntime implements ContainerRuntime {
 
     const gf = opts.groupFolder ?? 'default';
     const volumeMounts: k8s.V1VolumeMount[] = [
-      { name: 'tenant-data', mountPath: '/workspace/group', subPath: `groups/${gf}` },
-      { name: 'tenant-data', mountPath: '/workspace/ipc', subPath: `ipc/${gf}` },
-      { name: 'tenant-data', mountPath: '/home/node/.claude', subPath: `sessions/${gf}/.claude` },
-      { name: 'tenant-data', mountPath: '/app/src', subPath: `sessions/${gf}/agent-runner-src` },
+      {
+        name: 'tenant-data',
+        mountPath: '/workspace/group',
+        subPath: `groups/${gf}`,
+      },
+      {
+        name: 'tenant-data',
+        mountPath: '/workspace/ipc',
+        subPath: `ipc/${gf}`,
+      },
+      {
+        name: 'tenant-data',
+        mountPath: '/home/node/.claude',
+        subPath: `sessions/${gf}/.claude`,
+      },
+      {
+        name: 'tenant-data',
+        mountPath: '/app/src',
+        subPath: `sessions/${gf}/agent-runner-src`,
+      },
     ];
 
     const job: k8s.V1Job = {
@@ -110,29 +130,34 @@ export class K8sContainerRuntime implements ContainerRuntime {
               runAsGroup: 1000,
               fsGroup: 1000,
             },
-            containers: [{
-              name: 'agent',
-              image: opts.image,
-              env: envVars,
-              volumeMounts,
-              resources: {
-                requests: {
-                  cpu: this.resources?.requests?.cpu ?? '250m',
-                  memory: this.resources?.requests?.memory ?? '512Mi',
-                },
-                limits: {
-                  cpu: this.resources?.limits?.cpu ?? '1000m',
-                  memory: this.resources?.limits?.memory ?? '1Gi',
+            containers: [
+              {
+                name: 'agent',
+                image: opts.image,
+                env: envVars,
+                volumeMounts,
+                resources: {
+                  requests: {
+                    cpu: this.resources?.requests?.cpu ?? '250m',
+                    memory: this.resources?.requests?.memory ?? '512Mi',
+                  },
+                  limits: {
+                    cpu: this.resources?.limits?.cpu ?? '1000m',
+                    memory: this.resources?.limits?.memory ?? '1Gi',
+                  },
                 },
               },
-            }],
+            ],
             volumes,
           },
         },
       },
     };
 
-    await this.batchApi.createNamespacedJob({ namespace: this.namespace, body: job });
+    await this.batchApi.createNamespacedJob({
+      namespace: this.namespace,
+      body: job,
+    });
     logger.info({ jobName, namespace: this.namespace }, 'K8s Job created');
 
     // Wait for pod to start, then follow logs
@@ -147,16 +172,19 @@ export class K8sContainerRuntime implements ContainerRuntime {
 
   stop(name: string): void {
     const jobName = this.sanitizeName(name);
-    this.batchApi.deleteNamespacedJob({
-      name: jobName,
-      namespace: this.namespace,
-      body: { propagationPolicy: 'Background' },
-    }).catch((err) => {
-      const status = (err as { response?: { statusCode?: number } })?.response?.statusCode;
-      if (status !== 404) {
-        logger.warn({ jobName, err }, 'Failed to delete Job');
-      }
-    });
+    this.batchApi
+      .deleteNamespacedJob({
+        name: jobName,
+        namespace: this.namespace,
+        body: { propagationPolicy: 'Background' },
+      })
+      .catch((err) => {
+        const status = (err as { response?: { statusCode?: number } })?.response
+          ?.statusCode;
+        if (status !== 404) {
+          logger.warn({ jobName, err }, 'Failed to delete Job');
+        }
+      });
   }
 
   ensureRunning(): void {
@@ -165,27 +193,39 @@ export class K8sContainerRuntime implements ContainerRuntime {
   }
 
   cleanup(): void {
-    this.batchApi.listNamespacedJob({
-      namespace: this.namespace,
-      labelSelector: 'app.kubernetes.io/managed-by=nanoclaw,nanoclaw/role=agent',
-    }).then((response) => {
-      const orphans = (response.items ?? []).filter((job) => {
-        const active = (job.status?.active ?? 0) > 0;
-        const age = Date.now() - (job.metadata?.creationTimestamp?.getTime() ?? Date.now());
-        return active && age > 3600000; // > 1 hour old
+    this.batchApi
+      .listNamespacedJob({
+        namespace: this.namespace,
+        labelSelector:
+          'app.kubernetes.io/managed-by=nanoclaw,nanoclaw/role=agent',
+      })
+      .then((response) => {
+        const orphans = (response.items ?? []).filter((job) => {
+          const active = (job.status?.active ?? 0) > 0;
+          const age =
+            Date.now() -
+            (job.metadata?.creationTimestamp?.getTime() ?? Date.now());
+          return active && age > 3600000; // > 1 hour old
+        });
+        for (const job of orphans) {
+          this.stop(job.metadata!.name!);
+        }
+        if (orphans.length > 0) {
+          logger.info(
+            { count: orphans.length },
+            'Cleaned up orphaned K8s Jobs',
+          );
+        }
+      })
+      .catch((err) => {
+        logger.warn({ err }, 'Failed to cleanup orphaned K8s Jobs');
       });
-      for (const job of orphans) {
-        this.stop(job.metadata!.name!);
-      }
-      if (orphans.length > 0) {
-        logger.info({ count: orphans.length }, 'Cleaned up orphaned K8s Jobs');
-      }
-    }).catch((err) => {
-      logger.warn({ err }, 'Failed to cleanup orphaned K8s Jobs');
-    });
   }
 
-  private async followJobLifecycle(jobName: string, proc: K8sContainerProcess): Promise<void> {
+  private async followJobLifecycle(
+    jobName: string,
+    proc: K8sContainerProcess,
+  ): Promise<void> {
     // Wait for pod to appear and start
     const podName = await this.waitForPod(jobName);
     if (!podName) {
@@ -224,7 +264,11 @@ export class K8sContainerRuntime implements ContainerRuntime {
         const pod = pods.items?.[0];
         if (pod?.metadata?.name) {
           const phase = pod.status?.phase;
-          if (phase === 'Running' || phase === 'Succeeded' || phase === 'Failed') {
+          if (
+            phase === 'Running' ||
+            phase === 'Succeeded' ||
+            phase === 'Failed'
+          ) {
             return pod.metadata.name;
           }
         }
@@ -248,7 +292,8 @@ export class K8sContainerRuntime implements ContainerRuntime {
         if ((job.status?.succeeded ?? 0) > 0) return 0;
         if ((job.status?.failed ?? 0) > 0) return 1;
       } catch (err) {
-        const status = (err as { response?: { statusCode?: number } })?.response?.statusCode;
+        const status = (err as { response?: { statusCode?: number } })?.response
+          ?.statusCode;
         if (status === 404) return 1; // Job was deleted
         logger.debug({ jobName, err }, 'Error reading Job status');
       }

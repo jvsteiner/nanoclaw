@@ -7,7 +7,10 @@ import {
   runContainerAgent,
   writeTasksSnapshot,
 } from './container-runner.js';
-import type { ContainerProcess, ContainerRuntime } from './container-runtime.js';
+import type {
+  ContainerProcess,
+  ContainerRuntime,
+} from './container-runtime.js';
 import {
   getAllTasks,
   getDueTasks,

@@ -17,10 +17,11 @@ import {
 import { readEnvFile } from './env.js';
 import { resolveGroupFolderPath, resolveGroupIpcPath } from './group-folder.js';
 import { logger } from './logger.js';
-import {
-  readonlyMountArgs,
+import { readonlyMountArgs } from './container-runtime.js';
+import type {
+  ContainerProcess,
+  ContainerRuntime,
 } from './container-runtime.js';
-import type { ContainerProcess, ContainerRuntime } from './container-runtime.js';
 import { validateAdditionalMounts } from './mount-security.js';
 import { RegisteredGroup } from './types.js';
 

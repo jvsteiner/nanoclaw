@@ -38,12 +38,18 @@ export function startHealthServer(deps: HealthDependencies): http.Server {
     if (url === '/health' || url === '/healthz') {
       const mem = process.memoryUsage();
       res.writeHead(200, { 'Content-Type': 'application/json' });
-      res.end(JSON.stringify({
-        status: 'ok',
-        uptime: Math.floor((Date.now() - startTime) / 1000),
-        memory: { rss: mem.rss, heapUsed: mem.heapUsed, heapTotal: mem.heapTotal },
-        activeConversations: deps.getActiveConversations(),
-      }));
+      res.end(
+        JSON.stringify({
+          status: 'ok',
+          uptime: Math.floor((Date.now() - startTime) / 1000),
+          memory: {
+            rss: mem.rss,
+            heapUsed: mem.heapUsed,
+            heapTotal: mem.heapTotal,
+          },
+          activeConversations: deps.getActiveConversations(),
+        }),
+      );
       return;
     }
 
@@ -85,7 +91,9 @@ export function startHealthServer(deps: HealthDependencies): http.Server {
         `nanoclaw_uptime_seconds ${uptimeSeconds}`,
         '',
       ];
-      res.writeHead(200, { 'Content-Type': 'text/plain; version=0.0.4; charset=utf-8' });
+      res.writeHead(200, {
+        'Content-Type': 'text/plain; version=0.0.4; charset=utf-8',
+      });
       res.end(lines.join('\n'));
       return;
     }

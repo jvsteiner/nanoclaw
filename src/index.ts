@@ -18,12 +18,14 @@ import {
   writeGroupsSnapshot,
   writeTasksSnapshot,
 } from './container-runner.js';
-import {
-  createRuntime,
-} from './container-runtime.js';
+import { createRuntime } from './container-runtime.js';
 import type { ContainerRuntime } from './container-runtime.js';
 import { K8S_ENV } from './config.js';
-import { startHealthServer, incrementMessages, incrementAgentExecutions } from './health.js';
+import {
+  startHealthServer,
+  incrementMessages,
+  incrementAgentExecutions,
+} from './health.js';
 import {
   getAllChats,
   getAllRegisteredGroups,
