@@ -142,9 +142,7 @@ class TelegramChannel implements Channel {
 
     this.bot.on('message:photo', (ctx) => storeNonText(ctx, '[Photo]'));
     this.bot.on('message:video', (ctx) => storeNonText(ctx, '[Video]'));
-    this.bot.on('message:voice', (ctx) =>
-      storeNonText(ctx, '[Voice message]'),
-    );
+    this.bot.on('message:voice', (ctx) => storeNonText(ctx, '[Voice message]'));
     this.bot.on('message:audio', (ctx) => storeNonText(ctx, '[Audio]'));
     this.bot.on('message:document', (ctx) => {
       const name = ctx.message.document?.file_name || 'file';
@@ -220,7 +218,11 @@ class TelegramChannel implements Channel {
     }
   }
 
-  async sendFile(jid: string, filePath: string, caption?: string): Promise<void> {
+  async sendFile(
+    jid: string,
+    filePath: string,
+    caption?: string,
+  ): Promise<void> {
     if (!this.bot) {
       logger.warn('Telegram bot not initialized');
       return;
@@ -229,7 +231,10 @@ class TelegramChannel implements Channel {
     try {
       const numericId = jid.replace(/^tg:/, '');
       const ext = path.extname(filePath).toLowerCase();
-      const file = new InputFile(fs.createReadStream(filePath), path.basename(filePath));
+      const file = new InputFile(
+        fs.createReadStream(filePath),
+        path.basename(filePath),
+      );
       const opts = caption ? { caption } : {};
 
       if (['.png', '.jpg', '.jpeg', '.gif', '.webp'].includes(ext)) {
