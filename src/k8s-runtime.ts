@@ -54,6 +54,7 @@ export class K8sContainerRuntime implements ContainerRuntime {
   }
 
   async run(opts: RuntimeRunOptions): Promise<ContainerProcess> {
+    const imagePullSecret = globalThis.process.env.K8S_IMAGE_PULL_SECRET;
     const jobName = this.sanitizeName(opts.containerName);
 
     // Encode input as base64 env var (K8s Jobs don't support stdin)
@@ -126,11 +127,15 @@ export class K8sContainerRuntime implements ContainerRuntime {
             restartPolicy: 'Never',
             serviceAccountName: 'nanoclaw-agent',
             automountServiceAccountToken: false,
+            ...(imagePullSecret
+              ? { imagePullSecrets: [{ name: imagePullSecret }] }
+              : {}),
             securityContext: {
               runAsNonRoot: true,
               runAsUser: 1000,
               runAsGroup: 1000,
               fsGroup: 1000,
+              seccompProfile: { type: 'RuntimeDefault' },
             },
             containers: [
               {
@@ -138,6 +143,11 @@ export class K8sContainerRuntime implements ContainerRuntime {
                 image: opts.image,
                 env: envVars,
                 volumeMounts,
+                securityContext: {
+                  allowPrivilegeEscalation: false,
+                  capabilities: { drop: ['ALL'] },
+                  seccompProfile: { type: 'RuntimeDefault' },
+                },
                 resources: {
                   requests: {
                     cpu: this.resources?.requests?.cpu ?? '250m',

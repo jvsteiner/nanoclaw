@@ -214,12 +214,20 @@ function buildVolumeMounts(
  * Secrets are never written to disk or mounted as files.
  */
 function readSecrets(): Record<string, string> {
-  return readEnvFile([
+  const keys = [
     'CLAUDE_CODE_OAUTH_TOKEN',
     'ANTHROPIC_API_KEY',
     'ANTHROPIC_BASE_URL',
     'ANTHROPIC_AUTH_TOKEN',
-  ]);
+  ];
+  const fromFile = readEnvFile(keys);
+  // In K8s, secrets are injected as env vars — fall back to process.env
+  for (const key of keys) {
+    if (!fromFile[key] && process.env[key]) {
+      fromFile[key] = process.env[key]!;
+    }
+  }
+  return fromFile;
 }
 
 function buildContainerArgs(
