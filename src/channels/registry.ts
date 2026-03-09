@@ -13,6 +13,8 @@ export interface ChannelOpts {
 
 export type ChannelFactory = (opts: ChannelOpts) => Channel | null;
 
+export type ChannelSetup = (register: typeof registerChannel) => void;
+
 const registry = new Map<string, ChannelFactory>();
 
 export function registerChannel(name: string, factory: ChannelFactory): void {
