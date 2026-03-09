@@ -11,7 +11,10 @@ import { registerChannel, type ChannelSetup } from './registry.js';
  */
 export async function loadChannelsFromDirectory(dir: string): Promise<void> {
   if (!fs.existsSync(dir)) {
-    logger.warn({ dir }, 'Channels directory does not exist — no channels will load');
+    logger.warn(
+      { dir },
+      'Channels directory does not exist — no channels will load',
+    );
     return;
   }
 
@@ -28,7 +31,10 @@ export async function loadChannelsFromDirectory(dir: string): Promise<void> {
       const mod = await import(pathToFileURL(filePath).href);
       const setup: ChannelSetup | undefined = mod.default;
       if (typeof setup !== 'function') {
-        logger.warn({ file }, 'Channel file does not export a default setup function — skipping');
+        logger.warn(
+          { file },
+          'Channel file does not export a default setup function — skipping',
+        );
         continue;
       }
       setup(registerChannel);
