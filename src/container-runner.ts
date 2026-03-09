@@ -12,6 +12,7 @@ import {
   DATA_DIR,
   GROUPS_DIR,
   IDLE_TIMEOUT,
+  SKILLS_DIR,
   TIMEZONE,
 } from './config.js';
 import { readEnvFile } from './env.js';
@@ -143,8 +144,8 @@ function buildVolumeMounts(
     );
   }
 
-  // Sync skills from container/skills/ into each group's .claude/skills/
-  const skillsSrc = path.join(process.cwd(), 'container', 'skills');
+  // Sync skills from SKILLS_DIR into each group's .claude/skills/
+  const skillsSrc = SKILLS_DIR;
   const skillsDst = path.join(groupSessionsDir, 'skills');
   if (fs.existsSync(skillsSrc)) {
     for (const skillDir of fs.readdirSync(skillsSrc)) {
