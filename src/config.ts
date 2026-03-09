@@ -40,6 +40,13 @@ export const GROUPS_DIR =
 export const DATA_DIR =
   process.env.DATA_DIR || path.resolve(PROJECT_ROOT, 'data');
 
+// Dynamic loading directories
+// In K8s mode these point into the PVC; in dev mode they default to local dirs.
+export const CHANNELS_DIR =
+  process.env.CHANNELS_DIR || path.resolve(PROJECT_ROOT, 'catalog', 'dist');
+export const SKILLS_DIR =
+  process.env.SKILLS_DIR || path.resolve(PROJECT_ROOT, 'container', 'skills');
+
 export const CONTAINER_IMAGE =
   process.env.CONTAINER_IMAGE || 'nanoclaw-agent:latest';
 export const CONTAINER_TIMEOUT = parseInt(
