@@ -1,12 +1,3 @@
-// Channel self-registration barrel file.
-// Each import triggers the channel module's registerChannel() call.
-
-// discord
-
-// gmail
-
-// slack
-
-import './telegram.js'; // telegram
-
-// whatsapp
+// Channels are loaded dynamically from CHANNELS_DIR at runtime.
+// See src/channels/loader.ts for the loading mechanism.
+// Channel files live in catalog/channels/ and are compiled to catalog/dist/.
