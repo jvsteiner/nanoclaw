@@ -11,7 +11,9 @@ RUN npm ci --ignore-scripts
 
 COPY tsconfig.json ./
 COPY src/ ./src/
-RUN npx tsc
+COPY catalog/tsconfig.json ./catalog/
+COPY catalog/channels/ ./catalog/channels/
+RUN npx tsc && npx tsc -p catalog/tsconfig.json
 
 # --- Production stage ---
 FROM node:22-slim
@@ -32,9 +34,10 @@ RUN npm ci --omit=dev --ignore-scripts \
 COPY --from=build /app/dist/ ./dist/
 
 # Copy container assets the orchestrator syncs into per-group dirs
-# (agent-runner source and skills)
 COPY container/agent-runner/src/ ./container/agent-runner/src/
-COPY container/skills/ ./container/skills/
+
+# Copy compiled channel catalog (platform-provided, not tenant-specific)
+COPY --from=build /app/catalog/dist/ ./catalog/dist/
 
 USER node
 
