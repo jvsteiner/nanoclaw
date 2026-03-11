@@ -43,4 +43,4 @@ USER node
 
 EXPOSE 3000
 
-CMD ["node", "--dns-result-order=ipv4first", "--no-network-family-autoselection", "dist/index.js"]
+CMD ["node", "dist/index.js"]
