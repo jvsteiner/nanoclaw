@@ -18,11 +18,23 @@ const TRIGGER_PATTERN = new RegExp(
 
 // Minimal logger — the orchestrator's pino instance isn't available via import,
 // but console output goes to the same pod log.
+// Handles both (obj, msg) and (msg) call styles, and serializes Error objects properly.
+function serializeValue(v: any): any {
+  if (v instanceof Error) return { message: v.message, name: v.name, stack: v.stack };
+  return v;
+}
+function logEntry(level: string, first: any, second?: string): Record<string, any> {
+  if (typeof first === 'string') return { level, msg: first };
+  const obj: Record<string, any> = { level };
+  for (const [k, v] of Object.entries(first)) obj[k] = serializeValue(v);
+  if (second !== undefined) obj.msg = second;
+  return obj;
+}
 const log = {
-  info: (obj: any, msg?: string) => console.log(JSON.stringify({ level: 'info', ...obj, msg })),
-  warn: (obj: any, msg?: string) => console.warn(JSON.stringify({ level: 'warn', ...obj, msg })),
-  error: (obj: any, msg?: string) => console.error(JSON.stringify({ level: 'error', ...obj, msg })),
-  debug: (obj: any, msg?: string) => console.debug(JSON.stringify({ level: 'debug', ...obj, msg })),
+  info: (obj: any, msg?: string) => console.log(JSON.stringify(logEntry('info', obj, msg))),
+  warn: (obj: any, msg?: string) => console.warn(JSON.stringify(logEntry('warn', obj, msg))),
+  error: (obj: any, msg?: string) => console.error(JSON.stringify(logEntry('error', obj, msg))),
+  debug: (obj: any, msg?: string) => console.debug(JSON.stringify(logEntry('debug', obj, msg))),
 };
 
 export default function setup(register: any) {
