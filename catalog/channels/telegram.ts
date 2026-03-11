@@ -72,6 +72,43 @@ class TelegramChannel {
       );
     });
 
+    this.bot.command('register', (ctx) => {
+      const chatJid = `tg:${ctx.chat.id}`;
+      const chatType = ctx.chat.type;
+      const chatName =
+        chatType === 'private'
+          ? ctx.from?.first_name || 'Private'
+          : (ctx.chat as any).title || 'Unknown';
+      const groups = this.opts.registeredGroups();
+
+      if (groups[chatJid]) {
+        ctx.reply('This chat is already registered.');
+        return;
+      }
+
+      if (Object.keys(groups).length > 0) {
+        ctx.reply('A main chat is already registered. Additional chats can only be added by the main group\'s agent.');
+        return;
+      }
+
+      if (typeof this.opts.registerGroup !== 'function') {
+        ctx.reply('Registration is not available in this deployment.');
+        return;
+      }
+
+      this.opts.registerGroup(chatJid, {
+        name: chatName,
+        folder: 'main',
+        trigger: `@${ASSISTANT_NAME}`,
+        added_at: new Date().toISOString(),
+        requiresTrigger: false,
+        isMain: true,
+      });
+
+      log.info({ chatJid, chatName }, 'Main chat registered via /register command');
+      ctx.reply(`Registered! I'm ${ASSISTANT_NAME} — send me a message.`);
+    });
+
     this.bot.command('ping', (ctx) => {
       ctx.reply(`${ASSISTANT_NAME} is online.`);
     });
@@ -171,7 +208,12 @@ class TelegramChannel {
         onStart: (botInfo) => {
           log.info({ username: botInfo.username, id: botInfo.id }, 'Telegram bot connected');
           console.log(`\n  Telegram bot: @${botInfo.username}`);
-          console.log(`  Send /chatid to the bot to get a chat's registration ID\n`);
+          const groupCount = Object.keys(this.opts.registeredGroups()).length;
+          if (groupCount === 0) {
+            console.log(`  No chats registered — send /register to the bot to set up your main chat\n`);
+          } else {
+            console.log(`  ${groupCount} chat(s) registered — send /chatid to get a chat's registration ID\n`);
+          }
           resolve();
         },
       });
